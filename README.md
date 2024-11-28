@@ -1,0 +1,1 @@
+the file contains the python code to add files into the database u just need change the json file name based on the files.Also check whether u have ur s3 connected to the rds so that u can just directly upload the raw file from there.If u guys need help let me know 
