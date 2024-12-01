@@ -1,5 +1,6 @@
 import psycopg2
-from psycopg2 import sql
+from psycopg2 import sql, extras
+import json
 
 # AWS RDS credentials
 host = 'flowise-chatbot-database-instance-1.cifjclcixjjs.us-east-2.rds.amazonaws.com'
@@ -7,6 +8,8 @@ database = 'postgres'
 user = 'postgres'
 password = 'ds87398HFAERbbbvyufindsdfghyui'
 port = "5432"
+
+ROWS_PER_BATCH = 5000
 
 
 def get_conn():
@@ -46,8 +49,64 @@ def exec_query(query):
         close_cursor(cursor)
         close_conn(conn)
 
+def rows_on_query(query):
+    conn = get_conn()
+    cursor = conn.cursor()
+    
+    cursor.execute(query)
+    conn.commit()
+    
+    rows = cursor.fetchall()
+    close_cursor(cursor)
+    close_conn(conn)
 
-def insert_json(json_file):
+    return rows
+
+# Currently prints user review table size
+def size_tables() -> int:
+    query = "SELECT COUNT(*) FROM user_reviews;"
+
+    rows = rows_on_query(query)
+    print(rows[0])
+
+
+def check_duplicates():
+    query = """
+SELECT asin, user_id, timestamp, COUNT(*)
+FROM user_reviews
+GROUP BY asin, user_id, timestamp
+HAVING COUNT(*) > 1;
+"""
+
+    rows = rows_on_query(query)
+    print(rows)
+
+# WARNING: DESTROYS ENTIRE DATABASE
+def destroy_db():
+    query = "DROP TABLE IF EXISTS user_reviews"
+    exec_query(query)
+    
+    check_table_query = """
+    SELECT EXISTS (SELECT 1 FROM information_schema.tables 
+WHERE table_name = 'user_reviews')"""
+    
+    result = rows_on_query(check_table_query)
+    
+    if not result or not result[0][0]:
+        print("DATABASE DESTROYED")
+    else:
+        print("FAILED TO DESTROY DATABASE")
+    
+
+# insert product data reviews
+# TODO: remember that the images and videos columns are not there
+def insert_meta_json_data(json_file):
+    # for now empty
+    print('placeholder')
+
+# insert user reviews
+def insert_user_json_data(json_file):
+    print('got here')
     try:
         conn = get_conn()
         cursor = conn.cursor()
@@ -56,6 +115,7 @@ def insert_json(json_file):
         with open(json_file, 'r') as f:
             data = [json.loads(line) for line in f]
 
+        print('didnt get here')
         # Insert all reviews into the table
         insert_query = """
         INSERT INTO user_reviews (
@@ -68,28 +128,50 @@ def insert_json(json_file):
             timestamp,
             verified_purchase,
             helpful_vote
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ) VALUES %s
         ON CONFLICT (asin, user_id, "timestamp") DO NOTHING;
         """  # Skip rows that violate the unique constraint
 
+        batch_size = 0
+        iteration = 0
+        batch = []
+        
         for review in data:
-            try:
-                cursor.execute(insert_query, (
-                    review.get('rating', None),
-                    review.get('title', None),
-                    review.get('text', None),
-                    review.get('asin', None),
-                    review.get('parent_asin', None),
-                    review.get('user_id', None),
-                    review.get('timestamp', None),
-                    review.get('verified_purchase', None),
-                    review.get('helpful_vote', None)
-                ))
-            except Exception as e:
-                print(f"Error inserting the review: {review}. Error: {e}")
-                conn.rollback()  # Roll back the transaction if an error occurs
-            else:
-                conn.commit()  # Commit after each successful insert
+            batch.append((
+                review.get('rating', None),
+                review.get('title', None),
+                review.get('text', None),
+                review.get('asin', None),
+                review.get('parent_asin', None),
+                review.get('user_id', None),
+                review.get('timestamp', None),
+                review.get('verified_purchase', None),
+                review.get('helpful_vote', None)
+            ))
+                
+            batch_size += 1
+            print(f"batch number: {iteration}")
+            
+            if batch_size == ROWS_PER_BATCH:
+                try:
+                    # multiple inserts on one query with %s placeholders
+                    psycopg2.extras.execute_values(cursor, insert_query, batch)
+                    
+                    # Batch process: commit per ROWS_PER_BATCH rows
+                    print("committing batch {iteration}")
+                    conn.commit()
+                    
+                    batch_size = 0
+                    iteration += 1
+                    print(f"batch {iteration} completed!")
+                    batch.clear() #clears the list for next set of reviews
+        
+                except Exception as e:
+                    print(f"Insertion Error: {e}")
+                    # Roll back the transaction if an error occurs
+                    conn.rollback()
+                    batch.clear() #clears the list for next set of reviews
+                    return
 
         print("All rows inserted successfully!")
 
@@ -128,42 +210,55 @@ def print_rows(db_name):
 # Creates new products and review databases
 def create_db():
     
-    create_reviews_table_query = """
-    CREATE TABLE IF NOT EXISTS products (
-        main_category VARCHAR(255),
-        title VARCHAR(255),
-        average_rating FLOAT CHECK (average_rating BETWEEN 0 AND 5),
-        rating_number INT,
-        features TEXT, -- Storing as JSON string for flexibility
-        description TEXT, -- Storing as JSON string for flexibility
-        price FLOAT,
-        images TEXT, -- Storing as JSON string for flexibility
-        videos TEXT, -- Storing as JSON string for flexibility
-        store VARCHAR(255),
-        categories TEXT, -- Storing as JSON string for flexibility
-        details JSONB, -- Using JSONB for structured product details
-        parent_asin VARCHAR(20),
-        bought_together TEXT, -- Storing as JSON string for flexibility
-        PRIMARY KEY (parent_asin, title)
-    );
-    """
+    # create_products_table_query = """
+    # CREATE TABLE IF NOT EXISTS products (
+    #     main_category VARCHAR(255),
+    #     title VARCHAR(255),
+    #     average_rating FLOAT CHECK (average_rating BETWEEN 0 AND 5),
+    #     rating_number INT,
+    #     features TEXT, -- Storing as JSON string for flexibility
+    #     description TEXT, -- Storing as JSON string for flexibility
+    #     price FLOAT,
+    #     images TEXT, -- Storing as JSON string for flexibility
+    #     videos TEXT, -- Storing as JSON string for flexibility
+    #     store VARCHAR(255),
+    #     categories TEXT, -- Storing as JSON string for flexibility
+    #     details JSONB, -- Using JSONB for structured product details
+    #     parent_asin VARCHAR(20),
+    #     bought_together TEXT, -- Storing as JSON string for flexibility
+    #     PRIMARY KEY (parent_asin, title)
+    # ) """
     
-    create_products_table_query = """
-    INSERT INTO products (
-        main_category,
-        title,
-        average_rating,
-        rating_number,
-        features , 
-        description , 
-        price ,
-        store ,
-        categories,
-        details,
-        parent_asin ,
-        bought_together,
-    );
-    """
+    create_reviews_table_query = """
+    CREATE TABLE IF NOT EXISTS user_reviews (
+        rating FLOAT,
+        title TEXT,
+        text TEXT,
+        asin VARCHAR(20),
+        parent_asin VARCHAR(20),
+        user_id VARCHAR(40),
+        timestamp BIGINT,
+        verified_purchase BOOLEAN,
+        helpful_vote INTEGER,
+        PRIMARY KEY(asin, user_id, timestamp)
+    ); """
+    
+#     create_products_table_query = """
+#     INSERT INTO products (
+#         main_category,
+#         title,
+#         average_rating,
+#         rating_number,
+#         features , 
+#         description , 
+#         price ,
+#         store ,
+#         categories,
+#         details,
+#         parent_asin ,
+#         bought_together)
+# """
         
+    # exec_query(create_products_table_query)
+    # exec_query(create_products_table_query)
     exec_query(create_reviews_table_query)
-    exec_query(create_products_table_query)
