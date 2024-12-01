@@ -9,7 +9,7 @@ user = 'postgres'
 password = 'ds87398HFAERbbbvyufindsdfghyui'
 port = "5432"
 
-ROWS_PER_BATCH = 10000
+ROWS_PER_BATCH = 1000
 
 
 def get_conn():
@@ -107,7 +107,8 @@ WHERE table_name = 'user_reviews')"""
 # insert product data reviews
 # TODO: remember that the images and videos columns are not there
 def insert_meta_json_data(json_file):
-    # for now empty
+    conn = get_conn()
+    cursor = conn.cursor()
         
     insert_query = """
     INSERT INTO products (
@@ -122,7 +123,7 @@ def insert_meta_json_data(json_file):
         categories,
         details,
         parent_asin ,
-        bought_together) VALUES %S
+        bought_together) VALUES %s
         ON CONFLICT (parent_asin) DO NOTHING;"""
         
     batch_size = 0
@@ -180,10 +181,14 @@ def insert_user_json_data(json_file):
     try:
         conn = get_conn()
         cursor = conn.cursor()
+        
+        print('1')
 
         # Load JSON data
         with open(json_file, 'r') as f:
             data = [json.loads(line) for line in f]
+            
+        print('2')
 
         # Insert all reviews into the table
         insert_query = """

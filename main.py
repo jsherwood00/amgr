@@ -24,13 +24,13 @@ def insert_dir_meta(directory_path: str):
 if __name__ == "__main__":
 
     ### UNCOMMENT FOR ALL UPLOADING
-    # directory_path = os.getcwd()
+    directory_path = os.getcwd()
     
     ### UNCOMMENT FOR UPLOADING REVIEWS
-    # insert_dir_reviews(directory_path)
+   # insert_dir_reviews(directory_path)
     
     ### UNCOMMENT FOR UPLOADING PRODUCT METADATA
-    # insert_dir_meta(directory_path)
+    insert_dir_meta(directory_path)
     
     ### Other utility functions
     # print_rows("products")
