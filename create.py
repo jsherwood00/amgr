@@ -3,7 +3,7 @@ from psycopg2 import sql, extras
 import json
 
 # AWS RDS credentials
-host = 'flowise-chatbot-database-instance-1.cifjclcixjjs.us-east-2.rds.amazonaws.com'
+host = 'chatbot.cifjclcixjjs.us-east-2.rds.amazonaws.com'
 database = 'postgres'
 user = 'postgres'
 password = 'ds87398HFAERbbbvyufindsdfghyui'
@@ -107,72 +107,86 @@ WHERE table_name = 'user_reviews')"""
 # insert product data reviews
 # TODO: remember that the images and videos columns are not there
 def insert_meta_json_data(json_file):
-    conn = get_conn()
-    cursor = conn.cursor()
+    try:
+        conn = get_conn()
+        cursor = conn.cursor()
         
-    insert_query = """
-    INSERT INTO products (
-        main_category,
-        title,
-        average_rating,
-        rating_number,
-        features , 
-        description , 
-        price ,
-        store ,
-        categories,
-        details,
-        parent_asin ,
-        bought_together) VALUES %s
-        ON CONFLICT (parent_asin) DO NOTHING;"""
+        print('11')
         
-    batch_size = 0
-    iteration = 0
-    batch = []
-    
-    # Load JSON data
-    with open(json_file, 'r') as f:
-        data = [json.loads(line) for line in f]
-        
-    for review in data:
-        batch.append((
-            review.get('main_category', None),
-            review.get('title', None),
-            review.get('average_rating', None),
-            review.get('rating_number', None),
-            review.get('features', None),
-            review.get('description', None),
-            review.get('price', None),
-            review.get('store', None),
-            review.get('categories', None),
-            review.get('details', None),
-            review.get('parent_asin', None),
-            review.get('bought_together', None),
-        ))
+        # Load JSON data
+        with open(json_file, 'r') as f:
+            data = [json.loads(line) for line in f]
             
-        batch_size += 1
+        print('22')
+            
+        # Insert all metadata into the table
+        insert_query = """
+        INSERT INTO products (
+            main_category,
+            title,
+            average_rating,
+            rating_number,
+            features , 
+            description , 
+            price ,
+            store ,
+            categories,
+            details,
+            parent_asin ,
+            bought_together) VALUES %s
+            ON CONFLICT (parent_asin) DO NOTHING;"""
+            
+        batch_size = 0
+        iteration = 0
+        batch = []
+            
+        for review in data:
+            batch.append((
+                review.get('main_category', None),
+                review.get('title', None),
+                review.get('average_rating', None),
+                review.get('rating_number', None),
+                review.get('features', None),
+                review.get('description', None),
+                review.get('price', None),
+                review.get('store', None),
+                review.get('categories', None),
+                review.get('details', None),
+                review.get('parent_asin', None),
+                review.get('bought_together', None),
+            ))
+                
+            batch_size += 1
+            
+            if batch_size == ROWS_PER_BATCH:
+                try:
+                    # multiple inserts on one query with %s placeholders
+                    psycopg2.extras.execute_values(cursor, insert_query, batch)
+                    
+                    # Batch process: commit per ROWS_PER_BATCH rows
+                    conn.commit()
+                    
+                    batch_size = 0
+                    iteration += 1
+                    print(f"batch {iteration} completed!")
+                    batch.clear() #clears the list for next set of reviews
+
+                except Exception as e:
+                    print(f"Insertion Error: {e}")
+                    # Roll back the transaction if an error occurs
+                    conn.rollback()
+                    batch.clear() #clears the list for next set of reviews
+                    return
+
+        print("All rows inserted successfully!")
         
-        if batch_size == ROWS_PER_BATCH:
-            try:
-                # multiple inserts on one query with %s placeholders
-                psycopg2.extras.execute_values(cursor, insert_query, batch)
-                
-                # Batch process: commit per ROWS_PER_BATCH rows
-                conn.commit()
-                
-                batch_size = 0
-                iteration += 1
-                print(f"batch {iteration} completed!")
-                batch.clear() #clears the list for next set of reviews
+    except Exception as e:
+        print(f"Error: {e}")
 
-            except Exception as e:
-                print(f"Insertion Error: {e}")
-                # Roll back the transaction if an error occurs
-                conn.rollback()
-                batch.clear() #clears the list for next set of reviews
-                return
+    finally:
+        close_cursor(cursor)
+        close_conn(conn)
 
-    print("All rows inserted successfully!")
 
 
 
@@ -181,14 +195,10 @@ def insert_user_json_data(json_file):
     try:
         conn = get_conn()
         cursor = conn.cursor()
-        
-        print('1')
 
         # Load JSON data
         with open(json_file, 'r') as f:
             data = [json.loads(line) for line in f]
-            
-        print('2')
 
         # Insert all reviews into the table
         insert_query = """

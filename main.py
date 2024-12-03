@@ -16,9 +16,12 @@ def insert_dir_meta(directory_path: str):
     jsonl_files = glob.glob(file_pattern) # list of all .jsonl in dir
     
     for json_file in jsonl_files:
-        if os.path.basename(json_file).startswith('meta'): # only meta
-            print(f"Inserting data from {json_file}...")
-            insert_meta_json_data(json_file)
+        # if os.path.basename(json_file).startswith('meta'): # only meta
+        #     print(f"Inserting data from {json_file}...")
+        #     insert_meta_json_data(json_file)
+        # temp fix:
+        print(f"Inserting data from {json_file}...")
+        insert_meta_json_data(json_file)
         
 
 if __name__ == "__main__":
@@ -27,7 +30,7 @@ if __name__ == "__main__":
     directory_path = os.getcwd()
     
     ### UNCOMMENT FOR UPLOADING REVIEWS
-   # insert_dir_reviews(directory_path)
+    # insert_dir_reviews(directory_path)
     
     ### UNCOMMENT FOR UPLOADING PRODUCT METADATA
     insert_dir_meta(directory_path)
