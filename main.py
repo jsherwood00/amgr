@@ -8,17 +8,18 @@ import json
 def insert_from_reviews(directory_path: str):
     file_pattern = os.path.join(directory_path, "*.jsonl") # only jsonl files
     jsonl_files = glob(file_pattern) # list of all .jsonl in dir
+    # size_dic = dic with filename as key and size as value
     
     for json_file in jsonl_files:
         if not os.path.basename(json_file).startswith('meta'): # only reviews
-            _, before_insert_size = size_tables()
+            before_insert_size = size_tables()
             print('Inserting user from' + json_file)
             insert_user_data(json_file)
-            _, after_insert_size = size_tables()
+            after_insert_size = size_tables()
 
             # load lines in json file (~how many rows should be uploaded)
             with open(json_file, 'r') as file:
-                len_file = sum(1 for line in file if line.strip())
+                len_file = size_dic.get(json_file)
                 missing_values = len_file - (after_insert_size - before_insert_size)
                 # num values that failed to commit to RDS
                 print(f"[INFO] Missing values: {missing_values}\n")
@@ -55,7 +56,8 @@ if __name__ == "__main__":
     ### Inserting products works correctly
     #insert_from_meta(directory_path)
     
-    153,105,000
+    # Reviews: 153M,105,000 / 571M
+    # Products: / 48M
     
     # print_rows("Reviews")
     # size_tables()

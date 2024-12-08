@@ -66,19 +66,9 @@ def rows_on_query(query):
 
 def size_tables():
     user_query = "SELECT COUNT(*) FROM Reviews2;"
-    product_query = "SELECT COUNT(*) FROM Products2;"
-
-    reviews_query = "SELECT COUNT(*) FROM Reviews"
-    product1_query = "SELECT COUNT(*) FROM Products"
-
     user_rows = (rows_on_query(user_query))[0][0]
-    product_rows = (rows_on_query(product_query))[0][0]
-    #reviews = (rows_on_query(reviews_query))[0][0]
-    #products = (rows_on_query(product1_query))[0][0]
-
-    #print(f"Reviews1 is {reviews} and Products1 is {products} and Reviews2 is {user_rows} and Products2 is {product_rows}\n")
-    
-    return user_rows, product_rows
+    print(f"Reviews2 size is {user_rows}")
+    return user_rows
 
 
 # Currently checks duplicates for user reviews
@@ -363,8 +353,12 @@ def insert_user_data(json_file):
         iteration = 0
         batch = []
         
+        total_inserts = 0 # number of rows tried to insert
+        actual_inserts = 0 # number code designates as pushed to RDS
+        
         for review in data:
-
+            
+            total_inserts += 1
              # Sanitation: PostgreSQL sends an error if the string `0x00` is a substring of any field
             text = review.get('text', None)
             title = review.get('title', None)
@@ -379,6 +373,7 @@ def insert_user_data(json_file):
             ))
                 
             batch_size += 1
+            actual_inserts += 1
             if batch_size == ROWS_PER_BATCH:
                 try:
                     # multiple inserts on one query with %s placeholders
