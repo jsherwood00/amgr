@@ -55,7 +55,8 @@ if __name__ == "__main__":
     ### Inserting products works correctly
     #insert_from_meta(directory_path)
     
-    153,105,000
+    # Reviews: 153M,105,000 / 571M
+    # Products: / 48M
     
     # print_rows("Reviews")
     # size_tables()
