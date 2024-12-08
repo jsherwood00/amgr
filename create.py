@@ -73,12 +73,14 @@ def size_tables():
 
     user_rows = (rows_on_query(user_query))[0][0]
     product_rows = (rows_on_query(product_query))[0][0]
-    #reviews = (rows_on_query(reviews_query))[0][0]
-    #products = (rows_on_query(product1_query))[0][0]
+    reviews = (rows_on_query(reviews_query))[0][0]
+    products = (rows_on_query(product1_query))[0][0]
 
     #print(f"Reviews1 is {reviews} and Products1 is {products} and Reviews2 is {user_rows} and Products2 is {product_rows}\n")
+    print(f"Reviews1 is {reviews} and Reviews2 is {user_rows}")
+
     
-    return user_rows, product_rows
+    return user_rows, reviews
 
 
 # Currently checks duplicates for user reviews
@@ -363,7 +365,10 @@ def insert_user_data(json_file):
         iteration = 0
         batch = []
         
+        
+        
         for review in data:
+            
 
              # Sanitation: PostgreSQL sends an error if the string `0x00` is a substring of any field
             text = review.get('text', None)
