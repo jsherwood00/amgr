@@ -8,7 +8,42 @@ import json
 def insert_from_reviews(directory_path: str):
     file_pattern = os.path.join(directory_path, "*.jsonl") # only jsonl files
     jsonl_files = glob(file_pattern) # list of all .jsonl in dir
-    # size_dic = dic with filename as key and size as value
+    size_dic = {
+    "All_Beauty": 701528,
+    "Amazon_Fashion": 2500939,
+    "Appliances": 2128605,
+    "Arts_Crafts_and_Sewing": 8966758,
+    "Automotive": 19955450,
+    "Baby_Products": 6028884,
+    "Beauty_and_Personal_Care": 23911390,
+    "Books": 29475453,
+    "CDs_and_Vinyl": 4827273,
+    "Cell_Phones_and_Accessories": 20812945,
+    "Clothing_Shoes_and_Jewelry": 66033346,
+    "Digital_Music": 130434,
+    "Electronics": 43886944,
+    "Gift_Cards": 152410,
+    "Grocery_and_Gourmet_Food": 14318520,
+    "Handmade_Products": 664162,
+    "Health_and_Household": 25631345,
+    "Health_and_Personal_Care": 494121,
+    "Home_and_Kitchen": 67409944,
+    "Industrial_and_Scientific": 5183005,
+    "Kindle_Store": 25577616,
+    "Magazine_Subscriptions": 71497,
+    "Movies_and_TV": 17328314,
+    "Musical_Instruments": 3017439,
+    "Office_Products": 12845712,
+    "Patio_Lawn_and_Garden": 16490047,
+    "Pet_Supplies": 16827862,
+    "Software": 4880181,
+    "Sports_and_Outdoors": 19595170,
+    "Subscription_Boxes": 16216,
+    "Tools_and_Home_Improvement": 26982256,
+    "Toys_and_Games": 16260406,
+    "Unknown": 63814110,
+    "Video_Games": 4624615
+}
     
     for json_file in jsonl_files:
         if not os.path.basename(json_file).startswith('meta'): # only reviews
