@@ -403,6 +403,8 @@ def insert_user_data(json_file):
         close_cursor(cursor)
         close_conn(conn)
         print("Database connection closed.")
+    
+    print(f"tasked with inserting is {total_inserts}, committed inserts is: {actual_inserts}")
 
 
 # Warning: this only works because all files currently on s3 are in jsonl format.
