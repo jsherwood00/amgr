@@ -374,7 +374,7 @@ def insert_user_data(json_file):
                 
             batch_size += 1
             actual_inserts += 1
-            if batch_size == ROWS_PER_BATCH:
+            if batch_size == ROWS_PER_BATCH or review == data[-1]:
                 try:
                     # multiple inserts on one query with %s placeholders
                     psycopg2.extras.execute_values(cursor, insert_query, batch)
