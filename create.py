@@ -374,7 +374,7 @@ def insert_user_data(json_file):
                 
             batch_size += 1
             actual_inserts += 1
-            if batch_size == ROWS_PER_BATCH:
+            if batch_size == ROWS_PER_BATCH or review == data[-1]:
                 try:
                     # multiple inserts on one query with %s placeholders
                     psycopg2.extras.execute_values(cursor, insert_query, batch)
@@ -403,6 +403,8 @@ def insert_user_data(json_file):
         close_cursor(cursor)
         close_conn(conn)
         print("Database connection closed.")
+    
+    print(f"tasked with inserting is {total_inserts}, committed inserts is: {actual_inserts}")
 
 
 # Warning: this only works because all files currently on s3 are in jsonl format.
