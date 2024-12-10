@@ -65,11 +65,17 @@ def rows_on_query(query):
     return rows
 
 def size_tables():
-    user_query = "SELECT COUNT(*) FROM Reviews2;"
+    user_query = "SELECT COUNT(*) FROM Reviews3;"
     user_rows = (rows_on_query(user_query))[0][0]
-    print(f"Reviews2 size is {user_rows}")
     return user_rows
 
+def size_products():
+    products_1 = "SELECT COUNT(*) FROM Products;"
+    products_2 = "SELECT COUNT(*) FROM Products2;"
+    product_rows1 = (rows_on_query(products_1))[0][0]
+    product_rows2 = (rows_on_query(products_2))[0][0]
+
+    print(f"num rows in products 1 is {product_rows1} and in products 2 is {product_rows2}\n")
 
 # Currently checks duplicates for user reviews
 def check_duplicates():
@@ -91,15 +97,11 @@ HAVING COUNT(*) > 1;
     reviews_rows = rows_on_query(products_query)
     print(rows)
 
-# destroys new table (product2)
-def destroy_new():
-    query = "DROP TABLE IF EXISTS Reviews2"
-    exec_query(query)
 
 # WARNING: DESTROYS ENTIRE DATABASE
-def destroy_db():
-    query = "DROP TABLE IF EXISTS Details"
-    query2 = "DROP TABLE IF EXISTS Products"
+def destroy_old():
+    query = "DROP TABLE IF EXISTS reviewfinal"
+    query2 = "DROP TABLE IF EXISTS reviews2"
     exec_query(query)
     exec_query(query2)
     
@@ -333,33 +335,22 @@ def insert_product_data(json_file):
         close_conn(conn)
 
 # insert user reviews
-def insert_user_data(json_file):
+def add_reviews(json_file):
+    batch_size = 0
+    batch = []
+    insert_query = """INSERT INTO Reviews3 (parent_asin, text, title,
+    rating)VALUES %s ON CONFLICT DO NOTHING"""
+
     try:
         conn = get_conn()
         cursor = conn.cursor()
 
-        # Load JSON data
         with open(json_file, 'r') as f:
             data = [json.loads(line) for line in f]
 
-        # Insert all reviews into the table
-        insert_query = """INSERT INTO 
-            Reviews2 (parent_asin,
-            text,
-            title,
-            rating)VALUES %s
-            ON CONFLICT DO NOTHING"""
-        batch_size = 0
-        iteration = 0
-        batch = []
-        
-        total_inserts = 0 # number of rows tried to insert
-        actual_inserts = 0 # number code designates as pushed to RDS
         
         for review in data:
-            
-            total_inserts += 1
-             # Sanitation: PostgreSQL sends an error if the string `0x00` is a substring of any field
+            # Sanitation: PostgreSQL sends an error if the string `0x00` is a substring of any field
             text = review.get('text', None)
             title = review.get('title', None)
             if (text is not None and '\x00' in text) or (title is not None and '\x00' in title):
@@ -371,40 +362,26 @@ def insert_user_data(json_file):
                 title,
                 review.get('rating', None)
             ))
-                
             batch_size += 1
-            actual_inserts += 1
+                
             if batch_size == ROWS_PER_BATCH or review == data[-1]:
                 try:
-                    # multiple inserts on one query with %s placeholders
                     psycopg2.extras.execute_values(cursor, insert_query, batch)
-                    
-                    # Batch process: commit per ROWS_PER_BATCH rows
                     conn.commit()
-                    
                     batch_size = 0
-                    iteration += 1
-                    # print(f"batch {iteration} completed!")
-                    batch.clear() #clears the list for next set of reviews
-        
+                    batch.clear()
+    
                 except Exception as e:
-                    print(f"Insertion Error: {e}")
-                    # Roll back the transaction if an error occurs
                     conn.rollback()
                     batch.clear() #clears the list for next set of reviews
                     return
 
-        # print("All rows inserted successfully!")
-
     except Exception as e:
-        print(f"Database connection failed: {e}")
+        print(f"Database error: {e}")
 
     finally:
         close_cursor(cursor)
         close_conn(conn)
-        print("Database connection closed.")
-    
-    print(f"tasked with inserting is {total_inserts}, committed inserts is: {actual_inserts}")
 
 
 # Warning: this only works because all files currently on s3 are in jsonl format.
@@ -430,8 +407,8 @@ def print_rows(db_name):
     try:
         conn = get_conn()
         cursor = conn.cursor()
-        query = f"SELECT * FROM {db_name}"
-        cursor.execute(query)
+        #query = f"SELECT * FROM {db_name} LIMIT 20"
+        cursor.execute(db_name)
 
         rows = cursor.fetchall()
         column_names = [desc[0] for desc in cursor.description]
@@ -462,7 +439,7 @@ def create_db():
     ); """
 
     create_reviews_query2 = """
-    CREATE TABLE IF NOT EXISTS Reviews2 (
+    CREATE TABLE IF NOT EXISTS Reviews3 (
         rid SERIAL, --PostgreSQL uses this to auto gen id
         parent_asin VARCHAR(20),
         text TEXT,
